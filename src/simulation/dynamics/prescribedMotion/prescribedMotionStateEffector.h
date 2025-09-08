@@ -161,9 +161,15 @@ private:
     std::string nameOfInertialAttitudeProperty;           //!< Identifier for the prescribed motion inertial attitude property sigma_PN
     std::string nameOfInertialAngVelocityProperty;        //!< Identifier for the prescribed motion inertial angular velocity property omega_PN_P
 
+    std::string nameOfCenterOfMassSCProperty;
+    std::string nameOfCenterOfMassPrimeSCProperty;
+
     template <typename Type>
     /** Assign the state engine parameter names to attached effectors*/
     void assignStateParamNames(Type effector) {
+        effector->setPropName_centerOfMassSC(this->nameOfCenterOfMassSCProperty);
+        effector->setPropName_centerOfMassPrimeSC(this->nameOfCenterOfMassPrimeSCProperty);
+
         effector->setPropName_inertialPosition(this->nameOfInertialPositionProperty);
         effector->setPropName_inertialVelocity(this->nameOfInertialVelocityProperty);
         effector->setPropName_inertialAttitude(this->nameOfInertialAttitudeProperty);

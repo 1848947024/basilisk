@@ -56,17 +56,37 @@ LinearSpringMassDamper::~LinearSpringMassDamper()
     return;
 }
 
+void LinearSpringMassDamper::Reset(uint64_t CurrentClock) {
+}
+
 /*! Method for spring mass damper particle to access the states that it needs. It needs gravity and the hub states */
 void LinearSpringMassDamper::linkInStates(DynParamManager& statesIn)
 {
+    // Get access to the hub's states needed for dynamic coupling
+    this->hubOmega = statesIn.getStateObject("hubOmega");
+
     // - Grab access to gravity
-    this->g_N = statesIn.getPropertyReference(this->propName_vehicleGravity);
+    this->g_N = statesIn.getPropertyReference("g_N");
 
     // - Grab access to c_B and cPrime_B
     this->c_B = statesIn.getPropertyReference(this->propName_centerOfMassSC);
     this->cPrime_B = statesIn.getPropertyReference(this->propName_centerOfMassPrimeSC);
 
     return;
+}
+
+/*! This method is used to link properties
+ @return void
+ @param properties The parameter manager to collect from
+ */
+void LinearSpringMassDamper::linkInPrescribedMotionProperties(DynParamManager& properties)
+{
+    this->prescribedPositionProperty = properties.getPropertyReference(this->propName_prescribedPosition);
+    this->prescribedVelocityProperty = properties.getPropertyReference(this->propName_prescribedVelocity);
+    this->prescribedAccelerationProperty = properties.getPropertyReference(this->propName_prescribedAcceleration);
+    this->prescribedAttitudeProperty = properties.getPropertyReference(this->propName_prescribedAttitude);
+    this->prescribedAngVelocityProperty = properties.getPropertyReference(this->propName_prescribedAngVelocity);
+    this->prescribedAngAccelerationProperty = properties.getPropertyReference(this->propName_prescribedAngAcceleration);
 }
 
 /*! This is the method for the spring mass damper particle to register its states: rho and rhoDot */
@@ -169,6 +189,70 @@ void LinearSpringMassDamper::updateContributions(double integTime, BackSubMatric
 	backSubContr.vecRot = -this->massSMD*omegaTilde_BN_B_local * this->rTilde_PcB_B *this->rPrime_PcB_B -
                                                              this->massSMD*this->cRho*this->rTilde_PcB_B * this->pHat_B;
     return;
+}
+
+void LinearSpringMassDamper::addPrescribedMotionCouplingContributions(BackSubMatrices & backSubContr) {
+
+    // Access prescribed motion properties
+    Eigen::Vector3d r_PB_B = (Eigen::Vector3d)*this->prescribedPositionProperty;
+    Eigen::Vector3d rPrime_PB_B = (Eigen::Vector3d)*this->prescribedVelocityProperty;
+    Eigen::Vector3d rPrimePrime_PB_B = (Eigen::Vector3d)*this->prescribedAccelerationProperty;
+    Eigen::MRPd sigma_PB;
+    sigma_PB = (Eigen::Vector3d)*this->prescribedAttitudeProperty;
+    Eigen::Vector3d omega_PB_P = (Eigen::Vector3d)*this->prescribedAngVelocityProperty;
+    Eigen::Vector3d omegaPrime_PB_P = (Eigen::Vector3d)*this->prescribedAngAccelerationProperty;
+    Eigen::Matrix3d dcm_PB = sigma_PB.toRotationMatrix().transpose();
+
+    // Collect hub states
+    Eigen::Vector3d omega_bN_b = this->hubOmega->getState();
+    Eigen::Vector3d omega_BN_P = dcm_PB * omega_bN_b;
+
+    // Prescribed motion translation coupling contributions
+    Eigen::Vector3d fHat_P = this->pHat_B;
+    Eigen::Vector3d r_PB_P = dcm_PB * r_PB_B;
+    Eigen::Matrix3d rTilde_PB_P = eigenTilde(r_PB_P);
+    backSubContr.matrixB += - this->massSMD * fHat_P * this->aRho.transpose() * rTilde_PB_P;
+
+    Eigen::Matrix3d omegaTilde_PB_P = eigenTilde(omega_PB_P);
+    Eigen::Vector3d rPPrime_FcP_P = this->rPrime_PcB_B;
+    Eigen::Matrix3d omegaPrimeTilde_PB_P = eigenTilde(omegaPrime_PB_P);
+    Eigen::Vector3d r_FcP_P = this->r_PcB_B;
+    Eigen::Vector3d rPrimePrime_PB_P = dcm_PB * rPrimePrime_PB_B;
+    Eigen::Matrix3d omegaTilde_BN_P = eigenTilde(omega_BN_P);
+    Eigen::Vector3d rPrime_PB_P = dcm_PB * rPrime_PB_B;
+    Eigen::Vector3d term1 = 2.0 * omegaTilde_PB_P * rPPrime_FcP_P
+                            + omegaPrimeTilde_PB_P * r_FcP_P
+                            + omegaTilde_PB_P * omegaTilde_PB_P * r_FcP_P
+                            + rPrimePrime_PB_P;
+    Eigen::Vector3d term2 = rPrimePrime_PB_P + 2.0 * omegaTilde_BN_P * rPrime_PB_P
+                            + omegaTilde_BN_P * omegaTilde_BN_P * r_PB_P;
+    Eigen::Vector3d term3 = omegaPrime_PB_P + omegaTilde_BN_P * omega_PB_P;
+    backSubContr.vecTrans += - this->massSMD * term1
+                             - this->massSMD * this->aRho.transpose() * term2 * fHat_P
+                             - this->massSMD * this->bRho.transpose() * term3 * fHat_P;
+
+    // Prescribed motion rotation coupling contributions
+    backSubContr.matrixC += this->massSMD * rTilde_PB_P * fHat_P * this->aRho.transpose();
+
+    Eigen::Vector3d r_FcB_P = r_FcP_P + r_PB_P;
+    Eigen::Matrix3d rTilde_FcB_P = eigenTilde(r_FcB_P);
+    backSubContr.matrixD += this->massSMD * rTilde_PB_P * fHat_P * this->bRho.transpose()
+                            - this->massSMD * rTilde_FcB_P * fHat_P * this->aRho.transpose() * rTilde_PB_P;
+
+    Eigen::Vector3d omega_PN_P = omega_PB_P + omega_BN_P;
+    Eigen::Matrix3d omegaTilde_PN_P = eigenTilde(omega_PN_P);
+    Eigen::Matrix3d rTilde_FcP_P = eigenTilde(r_FcP_P);
+
+    Eigen::Vector3d vecRotTerm1 = - this->massSMD * rTilde_FcB_P * term1;
+    Eigen::Vector3d vecRotTerm2 = - this->massSMD * (omegaTilde_BN_P * rTilde_PB_P - omegaTilde_PB_P * rTilde_FcP_P) * rPPrime_FcP_P;
+                                  - this->massSMD * omegaTilde_BN_P * rTilde_FcB_P * (omegaTilde_PB_P * r_FcP_P + rPrime_PB_P);
+    Eigen::Vector3d vecRotTerm3 = - this->massSMD * this->cRho * rTilde_PB_P * fHat_P;
+    Eigen::Vector3d vecRotTerm4 = - this->massSMD * rTilde_FcB_P * fHat_P * (this->aRho.transpose() * term2)
+                                  - this->massSMD * rTilde_FcB_P * fHat_P * (this->bRho.transpose() * term3);
+    backSubContr.vecRot += vecRotTerm1
+                           + vecRotTerm2
+                           + vecRotTerm3
+                           + vecRotTerm4;
 }
 
 /*! This method is used to define the derivatives of the SMD. One is the trivial kinematic derivative and the other is

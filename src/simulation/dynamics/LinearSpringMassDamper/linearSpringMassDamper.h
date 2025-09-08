@@ -63,18 +63,31 @@ private:
 	StateData *rhoDotState;		   //!< -- state data for time derivative of rho;
     static uint64_t effectorID;    //!< [] ID number of this panel
 
+    // Properties required for prescribed motion branching/attachment
+    StateData* hubOmega;       //!< [rad/s] hub inertial angular velocity vector
+
+    Eigen::MatrixXd* prescribedPositionProperty = nullptr;         //!< [m] r_PB_B prescribed position relative to hub
+    Eigen::MatrixXd* prescribedVelocityProperty = nullptr;         //!< [m/s] rPrime_PB_B prescribed velocity relative to hub
+    Eigen::MatrixXd* prescribedAccelerationProperty = nullptr;     //!< [m/s^2] rPrimePrime_PB_B prescribed acceleration relative to hub
+    Eigen::MatrixXd* prescribedAttitudeProperty = nullptr;         //!< sigma_PB prescribed MRP attitude relative to hub
+    Eigen::MatrixXd* prescribedAngVelocityProperty = nullptr;      //!< [rad/s] omega_PB_P prescribed angular velocity relative to hub
+    Eigen::MatrixXd* prescribedAngAccelerationProperty = nullptr;  //!< [rad/s^2] omegaPrime_PB_P prescribed angular acceleration relative to hub
+
 public:
 	LinearSpringMassDamper();           //!< -- Contructor
 	~LinearSpringMassDamper();          //!< -- Destructor
-	void registerStates(DynParamManager& states);  //!< -- Method for SMD to register its states
-	void linkInStates(DynParamManager& states);  //!< -- Method for SMD to get access of other states
+    void Reset(uint64_t CurrentClock) override;
+    void registerStates(DynParamManager& states) override;  //!< -- Method for SMD to register its states
+	void linkInStates(DynParamManager& states) override;  //!< -- Method for SMD to get access of other states
+    void linkInPrescribedMotionProperties(DynParamManager& states) override;
     void retrieveMassValue(double integTime);
     void calcForceTorqueOnBody(double integTime, Eigen::Vector3d omega_BN_B);  //!< -- Force and torque on s/c due to linear spring mass damper
-    void updateEffectorMassProps(double integTime);  //!< -- Method for stateEffector to give mass contributions
-    void updateContributions(double integTime, BackSubMatrices & backSubContr, Eigen::Vector3d sigma_BN, Eigen::Vector3d omega_BN_B, Eigen::Vector3d g_N);  //!< -- Back-sub contributions
+    void updateEffectorMassProps(double integTime) override;  //!< -- Method for stateEffector to give mass contributions
+    void updateContributions(double integTime, BackSubMatrices & backSubContr, Eigen::Vector3d sigma_BN, Eigen::Vector3d omega_BN_B, Eigen::Vector3d g_N) override;  //!< -- Back-sub contributions
     void updateEnergyMomContributions(double integTime, Eigen::Vector3d & rotAngMomPntCContr_B,
-                                              double & rotEnergyContr, Eigen::Vector3d omega_BN_B);  //!< -- Energy and momentum calculations
-    void computeDerivatives(double integTime, Eigen::Vector3d rDDot_BN_N, Eigen::Vector3d omegaDot_BN_B, Eigen::Vector3d sigma_BN);  //!< -- Method for each stateEffector to calculate derivatives
+                                              double & rotEnergyContr, Eigen::Vector3d omega_BN_B) override;  //!< -- Energy and momentum calculations
+    void computeDerivatives(double integTime, Eigen::Vector3d rDDot_BN_N, Eigen::Vector3d omegaDot_BN_B, Eigen::Vector3d sigma_BN) override;  //!< -- Method for each stateEffector to calculate derivatives
+    void addPrescribedMotionCouplingContributions(BackSubMatrices& backSubContr) override;
 };
 
 

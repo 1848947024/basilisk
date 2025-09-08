@@ -70,6 +70,9 @@ PrescribedMotionStateEffector::PrescribedMotionStateEffector()
     this->nameOfPrescribedAngVelocityProperty = "prescribedObjectAngVelocity" + std::to_string(PrescribedMotionStateEffector::effectorID);
     this->nameOfPrescribedAngAccelerationProperty = "prescribedObjectAngAcceleration" + std::to_string(PrescribedMotionStateEffector::effectorID);
 
+    this->nameOfCenterOfMassSCProperty = "centerOfMassSC";
+    this->nameOfCenterOfMassPrimeSCProperty = "centerOfMassPrimeSC";
+
     PrescribedMotionStateEffector::effectorID++;
 }
 
