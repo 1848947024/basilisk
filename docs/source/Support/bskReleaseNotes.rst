@@ -30,6 +30,8 @@ Version |release|
   Users should be astrodynamics constants from ``Basilisk.architecture.astroConstants``.
 - Made statistical unit tests more robust
 - Refactored the CI build system scripts
+- Added a new stepper motor simulation module :ref:`stepperMotor`. This kinematic profiler module is useful to
+  simulate the actuation of motor-driven prescribed spacecraft components.
 
 
 Version 2.78.0 (August 30, 2025)
