@@ -136,6 +136,12 @@ public:
         this->initialized = true;
     };
 
+    //! Unsubscribe to the connected message, noop if no message was connected
+    void unsubscribe(){
+        this->payloadPointer = nullptr;
+        this->headerPointer = nullptr;
+        this->initialized = false;
+    }
 
     //! Check if self has been subscribed to a C message
     uint8_t isSubscribedToC(void *source){
@@ -330,6 +336,8 @@ public:
     std::vector<uint64_t>& timesWritten(){return this->msgWrittenTimes;}
     //! record method
     std::vector<messageType>& record(){return this->msgRecord;};
+    //! size of the record so far
+    size_t size(){return this->record().size();}
 
     //! determine message name
     std::string findMsgName(std::string msgName) {

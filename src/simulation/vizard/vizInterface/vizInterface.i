@@ -16,6 +16,10 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 */
 
 %module vizInterface
+
+%include "architecture/utilities/bskException.swg"
+%default_bsk_exception();
+
 %{
    #include "vizInterface.h"
    #include "simulation/vizard/_GeneralModuleFiles/vizStructures.h"
@@ -121,6 +125,15 @@ mod.MultiSphereVector = _DeprecatedWrapper(
     aliasName="MultiSphereVector",
     targetName="MultiShapeVector",
     removalDate="2026/03/07"
+)
+
+# when removing, also remove line 1649 that sets settings explicitly in src/utilities/vizSupport.py
+mod.VizSettings = _DeprecatedWrapper(
+    mod.VizSettings,
+    targetName="VizSettings",
+    deprecatedFields={"customGUIScale": "customGUIReferenceHeight"},
+    typeConversion="useDefaultDouble",
+    removalDate="2026/05/27"
 )
 
 protectAllClasses(sys.modules[__name__])

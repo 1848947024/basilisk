@@ -18,6 +18,10 @@
  */
 %module swig_deprecated
 
+%include "architecture/utilities/bskException.swg"
+%default_bsk_exception();
+
+
 /** Used to deprecate a function in C++ that is exposed to Python through SWIG.
 
 'function' is the SWIG identifier of the function. If it is a standalone function,
@@ -141,6 +145,8 @@ def _inject_deprecated_property(instance, old_attr, new_attr, removal_date, type
         # Conduct type conversions if new variable type is changed
         if typeConversion and typeConversion == "scalarTo3D":
             setattr(self, new_attr, [value, value, value])
+        elif typeConversion and typeConversion == "useDefaultDouble":
+            setattr(self, new_attr, -1.0)
         else:
             setattr(self, new_attr, value)
 

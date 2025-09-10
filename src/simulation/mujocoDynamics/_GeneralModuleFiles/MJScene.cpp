@@ -38,6 +38,10 @@ MJScene::MJScene(std::string xml, const std::vector<std::string>& files)
 {
     this->AddFwdKinematicsToDynamicsTask(MJScene::FWD_KINEMATICS_PRIORITY);
     this->integrator = new svIntegratorRK4(this);
+
+    // Replace default MuJoCo error/warning handling with our own
+    mju_user_error = MJBasilisk::detail::logMujocoError;
+    mju_user_warning = MJBasilisk::detail::logMujocoWarning;
 }
 
 MJScene MJScene::fromFile(const std::string& fileName)
@@ -337,6 +341,18 @@ MJTorqueActuator& MJScene::getTorqueActuator(const std::string& name)
 MJForceTorqueActuator& MJScene::getForceTorqueActuator(const std::string& name)
 {
     return this->spec.getActuator<MJForceTorqueActuator>(name);
+}
+
+MJSingleActuator& MJScene::addJointSingleActuator(const std::string& name,
+                                             const std::string& joint)
+{
+    return this->spec.addJointSingleActuator(name, joint);
+}
+
+MJSingleActuator&
+MJScene::addJointSingleActuator(const std::string& name, const MJJoint& joint)
+{
+    return this->addJointSingleActuator(name, joint.getName());
 }
 
 MJSingleActuator& MJScene::addSingleActuator(const std::string& name,

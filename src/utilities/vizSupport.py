@@ -17,14 +17,15 @@
 #  OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #
 
-import numpy as np
 import os
+
+import numpy as np
 from Basilisk import __path__
 from Basilisk.architecture import messaging
 from Basilisk.simulation import spacecraft
-from Basilisk.utilities import unitTestSupport
 from Basilisk.utilities import deprecated
 from Basilisk.utilities import quadMapSupport as qms
+from Basilisk.utilities import unitTestSupport
 from matplotlib import colors
 from matplotlib.colors import is_color_like
 
@@ -218,6 +219,9 @@ def addLocation(viz, **kwargs):
     markerScale: double
         Value will be multiplied by default marker scale, values less than 1.0 will decrease size, greater will increase.
         Optional
+    isHidden: bool
+        True to hide Location, false to show (vizDefault)
+        Optional
     """
     if not vizFound:
         print('vizFound is false. Skipping this method.')
@@ -226,7 +230,7 @@ def addLocation(viz, **kwargs):
     vizElement = vizInterface.LocationPbMsg()
 
     unitTestSupport.checkMethodKeyword(
-        ['stationName', 'parentBodyName', 'r_GP_P', 'lla_GP', 'gHat_P', 'fieldOfView', 'color', 'range'],
+        ['stationName', 'isHidden', 'parentBodyName', 'r_GP_P', 'lla_GP', 'gHat_P', 'fieldOfView', 'color', 'range', 'markerScale'],
         kwargs)
 
     if 'stationName' in kwargs:
@@ -324,6 +328,23 @@ def addLocation(viz, **kwargs):
             print('ERROR: range must be a float')
             exit(1)
         vizElement.range = rangeParam
+
+    if 'markerScale' in kwargs:
+        markerScale = kwargs['markerScale']
+        if not isinstance(markerScale, float):
+            print('ERROR: markerScale must be a float')
+            exit(1)
+        if markerScale < 0.0:
+            print('ERROR: markerScale must be a positive float')
+            exit(1)
+        vizElement.markerScale = markerScale
+
+    if 'isHidden' in kwargs:
+        isHidden = kwargs['isHidden']
+        if not isinstance(isHidden, bool):
+            print('ERROR: markerScale must be a bool')
+            exit(1)
+        vizElement.isHidden = isHidden
 
     locationList.append(vizElement)
     del viz.locations[:]  # clear settings list to replace it with updated list
@@ -1162,6 +1183,9 @@ def createStandardCamera(viz, **kwargs):
     setMode: int
         0 -> body targeting, 1 -> pointing vector (default).
         Optional
+    showHUDElementsInImage: int
+        Value of 0 (protobuffer default) to use viz default, -1 for false, 1 for true
+        Optional
     setView: int
         0 -> nadir (default), 1 -> orbit normal, 2 -> along track. This is a setting for body targeting mode.
         Optional
@@ -1187,7 +1211,7 @@ def createStandardCamera(viz, **kwargs):
     cam = vizInterface.StdCameraSettings()
 
     unitTestSupport.checkMethodKeyword(
-        ['spacecraftName', 'setMode', 'setView', 'fieldOfView',
+        ['spacecraftName', 'setMode', 'showHUDElementsInImage', 'setView', 'fieldOfView',
          'bodyTarget', 'pointingVector_B', 'position_B', 'displayName'],
         kwargs)
 
@@ -1209,6 +1233,13 @@ def createStandardCamera(viz, **kwargs):
             print('ERROR: vizSupport: setMode must be a 0 (body targeting) or 1 (pointing vector)')
             exit(1)
         cam.setMode = setMode
+
+    if 'showHUDElementsInImage' in kwargs:
+        showHUDElementsInImage = kwargs['showHUDElementsInImage']
+        if not isinstance(showHUDElementsInImage, int):
+            print('ERROR: vizSupport: showHUDElementsInImage must be an integer')
+            exit(1)
+        cam.showHUDElementsInImage = showHUDElementsInImage
 
     if 'setView' in kwargs:
         setView = kwargs['setView']
@@ -1339,6 +1370,8 @@ def createCameraConfigMsg(viz, **kwargs):
     depthMapClippingPlanes: 2-element double-list
         [m] Set the bounds of rendered depth map by setting the near and far clipping planes when in renderMode=1 (depthMap mode). Default values of 0.1 and 100.
         Optional
+    showHUDElementsInImage: int
+        Value of 0 (protobuffer default) to use viz default, -1 for false, 1 for true
     """
     if not vizFound:
         print('vizFound is false. Skipping this method.')
@@ -1347,7 +1380,8 @@ def createCameraConfigMsg(viz, **kwargs):
     unitTestSupport.checkMethodKeyword(
         ['cameraID', 'parentName', 'fieldOfView', 'resolution', 'renderRate', 'cameraPos_B',
          'sigma_CB', 'skyBox', 'postProcessingOn', 'ppFocusDistance', 'ppAperture', 'ppFocalLength',
-         'ppMaxBlurSize', 'updateCameraParameters', 'renderMode', 'depthMapClippingPlanes'],
+         'ppMaxBlurSize', 'updateCameraParameters', 'renderMode', 'depthMapClippingPlanes',
+         'showHUDElementsInImage'],
         kwargs)
 
     cameraConfigMsgPayload = messaging.CameraConfigMsgPayload()
@@ -1517,6 +1551,13 @@ def createCameraConfigMsg(viz, **kwargs):
     else:
         cameraConfigMsgPayload.depthMapClippingPlanes = [-1.0, -1.0]
 
+    if 'showHUDElementsInImage' in kwargs:
+        val = kwargs['showHUDElementsInImage']
+        if not isinstance(val, int):
+            print('ERROR: vizSupport: showHUDElementsInImage must be an integer')
+            exit(1)
+        cameraConfigMsgPayload.showHUDElementsInImage = val
+
     cameraConfigMsg = messaging.CameraConfigMsg().write(cameraConfigMsgPayload)
     # need to add code to retain camera config msg in memory.  Below
     # the function makes vizInterface subscribe to the pointer to this Msg object
@@ -1542,8 +1583,10 @@ def enableUnityVisualization(scSim, simTaskName, scList, **kwargs):
     Keyword Args
     ------------
     saveFile: str
-        can be a single file name, or a full path + file name. In both cases a local results are stored
-        in a local sub-folder.
+        can be a single python file name, or a full path + file name. In both cases a local results are stored
+        in a local sub-folder called ``_VizFiles``.
+        If a data file name is provided directly (i.e. it ends with ``.bin``), then the
+        associated file path and name are used explicitly.
         Default: empty string resulting in the data not being saved to a file
     rwEffectorList: single or list of ``ReactionWheelStateEffector``
         The list must have the same length ``scList``.  Each entry is the :ref:`ReactionWheelStateEffector` instance
@@ -1615,6 +1658,7 @@ def enableUnityVisualization(scSim, simTaskName, scList, **kwargs):
 
     # set up the Vizard interface module
     vizMessenger = vizInterface.VizInterface()
+    vizMessenger.settings = vizInterface.VizSettings()
     vizMessenger.ModelTag = "vizMessenger"
     scSim.AddModelToTask(simTaskName, vizMessenger)
 
@@ -1970,21 +2014,28 @@ def enableUnityVisualization(scSim, simTaskName, scList, **kwargs):
     vizMessenger.gravBodyInformation = vizInterface.GravBodyInfoVector(planetInfoList)
     vizMessenger.spiceInMsgs = messaging.SpicePlanetStateMsgInMsgsVector(spiceMsgList)
 
-    # note that the following logic can receive a single file name, or a full path + file name.
+    # note that the following logic can receive a single python file name, or a full path + file name.
     # In both cases a local results are stored in a local sub-folder.
+    # If a "*.bin" file is provided, then the provided path and name are used to store the data.
     vizMessenger.saveFile = False
     if 'saveFile' in kwargs:
         fileNamePath = kwargs['saveFile']
-        fileName = os.path.splitext(os.path.basename(fileNamePath))[0]
-        filePath = os.path.dirname(fileNamePath)
-        if filePath == "":
-            filePath = "."
-        if not os.path.isdir(filePath + '/_VizFiles'):
-            os.mkdir(filePath + '/_VizFiles')
-        vizFileNamePath = filePath + '/_VizFiles/' + fileName + '_UnityViz.bin'
+        if os.path.splitext(os.path.basename(fileNamePath))[1].lower()==".bin":
+            # here the provide file path, file name and file extension are used explicitly
+            vizFileNamePath = fileNamePath
+        else:
+            # here the file path and name string are split into file path and a file name
+            # next, the `_VizFiles` folder is created, if needed, and the binary data file
+            # has the name of the provided file name with `_UnityViz.bin` appended
+            fileName = os.path.splitext(os.path.basename(fileNamePath))[0]
+            filePath = os.path.dirname(fileNamePath)
+            if filePath == "":
+                filePath = "."
+            if not os.path.isdir(filePath + '/_VizFiles'):
+                os.mkdir(filePath + '/_VizFiles')
+            vizFileNamePath = filePath + '/_VizFiles/' + fileName + '_UnityViz.bin'
         vizMessenger.saveFile = True
         vizMessenger.protoFilename = vizFileNamePath
-        print("Saving Viz file to " + vizFileNamePath)
 
     if 'liveStream' in kwargs:
         val = kwargs['liveStream']

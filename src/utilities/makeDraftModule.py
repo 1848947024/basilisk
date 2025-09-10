@@ -423,6 +423,10 @@ class moduleGenerator:
         self.log(statusColor + "Creating Swig Interface File " + swigFileName + ":" + endColor, end=" ")
         swigFile = licenseC
         swigFile += f'%module {name}\n'
+        swigFile += '\n'
+        swigFile += '%include "architecture/utilities/bskException.swg"\n'
+        swigFile += '%default_bsk_exception();\n'
+        swigFile += '\n'
         swigFile += '%{\n'
         swigFile += f'    #include "{name}.h"\n'
         swigFile += '%}\n'
@@ -630,6 +634,10 @@ class moduleGenerator:
         self.log(f"{statusColor}Creating Swig Interface File {swigFileName}:{endColor}", end=" ")
         swigFile = licenseC
         swigFile += f'%module {name}\n'
+        swigFile += '\n'
+        swigFile += '%include "architecture/utilities/bskException.swg"\n'
+        swigFile += '%default_bsk_exception();\n'
+        swigFile += '\n'
         swigFile += '%{\n'
         swigFile += f'    #include "{name}.h"\n'
         swigFile += '%}\n'
@@ -697,7 +705,7 @@ def fillCppInfo(module):
     outMsgList = list()
     outMsgList.append({'type': 'AttRefMsg', 'var': 'some2OutMsg', 'desc': 'output msg description', 'wrap': 'C'})
     outMsgList.append({'type': 'SCStatesMsg', 'var': 'someOutMsg', 'desc': 'output msg description', 'wrap': 'C'})
-    outMsgList.append({'type': 'RWConfigMsg', 'var': 'anotherCppOutMsg', 'desc': 'output msg description', 'wrap': 'C++'})
+    outMsgList.append({'type': 'DataStorageStatusMsg', 'var': 'anotherCppOutMsg', 'desc': 'output msg description', 'wrap': 'C++'})
     module.outMsgList = outMsgList
 
     # provide list of module variables
