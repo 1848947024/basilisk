@@ -20,7 +20,7 @@
 #ifndef BASILISK_SIMPLESOLARPANEL_H
 #define BASILISK_SIMPLESOLARPANEL_H
 
-#include <Eigen/Dense>
+#include "E:/FR_CUP/eigen/Eigen/Dense"
 #include <vector>
 #include "simulation/power/_GeneralModuleFiles/powerNodeBase.h"
 #include "architecture/messaging/messaging.h"
